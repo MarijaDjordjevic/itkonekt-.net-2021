@@ -1,4 +1,8 @@
 using Autobarn.Data;
+using Autobarn.Website.GraphQL.Schemas;
+using EasyNetQ;
+using GraphiQl;
+using GraphQL.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -19,7 +23,7 @@ namespace Autobarn.Website {
 		// This method gets called by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection services) {
 			services.AddRouting(options => options.LowercaseUrls = true);
-			services.AddControllersWithViews().AddNewtonsoftJson();
+			services.AddControllersWithViews().AddNewtonsoftJson(options => options.UseCamelCasing(processDictionaryKeys: true));
 			services.AddRazorPages().AddRazorRuntimeCompilation();
 			Console.WriteLine(DatabaseMode);
 			switch (DatabaseMode) {
@@ -31,6 +35,12 @@ namespace Autobarn.Website {
 					services.AddSingleton<IAutobarnDatabase, AutobarnCsvFileDatabase>();
 					break;
 			}
+
+			var bus = RabbitHutch.CreateBus(Configuration.GetConnectionString("AutobarnRabbitMQConnectionString"));
+			services.AddSingleton<IBus>(bus);
+
+			services.AddScoped<AutobarnSchema>();
+			services.AddGraphQL(options => options.EnableMetrics = false).AddNewtonsoftJson();
 		}
 
 		public void Configure(IApplicationBuilder app, IWebHostEnvironment env) {
@@ -46,6 +56,10 @@ namespace Autobarn.Website {
 			app.UseStaticFiles();
 			app.UseRouting();
 			app.UseAuthorization();
+
+			app.UseGraphQL<AutobarnSchema>();
+			app.UseGraphiQl("/graphiql");
+
 			app.UseEndpoints(endpoints => {
 				endpoints.MapControllerRoute(
 					name: "default",

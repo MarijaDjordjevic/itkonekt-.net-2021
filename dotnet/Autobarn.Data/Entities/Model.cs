@@ -16,5 +16,7 @@ namespace Autobarn.Data.Entities {
 		public virtual Manufacturer Manufacturer { get; set; }
 		[JsonIgnore]
 		public virtual ICollection<Vehicle> Vehicles { get; set; }
+
+		public string ManufacturerWebsiteUrl => $"https://{Manufacturer.Name.ToLower()}/vehicles/{Code.ToLower()}";
 	}
 }
